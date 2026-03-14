@@ -2,11 +2,9 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from pytgcalls import PyTgCalls
 from pytgcalls.types import GroupCallParticipant
+from config import API_ID, API_HASH, SESSION_STRING
 import asyncio
 
-API_ID = 123456
-API_HASH = "your_api_hash"
-SESSION_NAME = "userbot_session"
 
 app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
 calls = PyTgCalls(app)
