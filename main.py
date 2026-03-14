@@ -18,11 +18,15 @@ app = Client(
 pytg = PyTgCalls(app)
 
 
-def owner_only(_, __, message):
-    return message.from_user and message.from_user.id == OWNER_ID
+def owner_logger(_, __, message):
+    return (
+        message.from_user
+        and message.from_user.id == OWNER_ID
+        and message.chat
+        and message.chat.id == LOGGER_ID
+    )
 
-
-owner_filter = filters.create(owner_only)
+control_filter = filters.create(owner_logger)
 
 
 #VOLUME INCREASE FUNCTION
