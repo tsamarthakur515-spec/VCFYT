@@ -24,6 +24,33 @@ def owner_only(_, __, message):
 owner_filter = filters.create(owner_only)
 
 
+#VOLUME INCREASE FUNCTION
+
+@app.on_message(filters.command("level") & owner_filter)
+async def set_volume(client, message):
+    if len(message.command) < 2:
+        await message.reply("Usage: /level 1-20")
+        return
+
+    try:
+        level = int(message.command[1])
+
+        if level < 1 or level > 20:
+            await message.reply("Level must be between 1 and 20.")
+            return
+
+        volume = level * 5  # converts 1-20 → 5-100
+
+        await pytg.change_volume_call(
+            message.chat.id,
+            volume
+        )
+
+        await message.reply(f"Volume set to Level {level}")
+
+    except Exception as e:
+        await message.reply(f"Error: {e}")
+
 @app.on_message(filters.command("join") & owner_filter)
 async def join_vc(client, message):
     if len(message.command) < 2:
