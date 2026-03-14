@@ -5,13 +5,14 @@ from pytgcalls.types.input_stream import InputAudioStream
 from pytgcalls.types.input_stream.quality import HighQualityAudio
 from pytgcalls.types import Update
 from pytgcalls.types.stream import StreamAudioEnded
-from config import API_ID, API_HASH, BOT_TOKEN, OWNER_ID
+from config import API_ID, API_HASH, BOT_TOKEN, OWNER_ID, STRING_SESSION
 
 app = Client(
     "vc-assistant",
     api_id=API_ID,
     api_hash=API_HASH,
-    bot_token=BOT_TOKEN
+    bot_token=BOT_TOKEN,
+    session_string=STRING_SESSION
 )
 
 pytg = PyTgCalls(app)
