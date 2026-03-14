@@ -1,154 +1,80 @@
-import asyncio
 from pyrogram import Client, filters
+from pyrogram.types import Message
 from pytgcalls import PyTgCalls
-from pytgcalls.types.input_stream import InputAudioStream
-from pytgcalls.types.input_stream.quality import HighQualityAudio
-from pytgcalls.types import Update
-from pytgcalls.types.stream import StreamAudioEnded
-from pyrogram import Client, filters
-from config import API_ID, API_HASH, BOT_TOKEN, STRING_SESSION, OWNER_ID, LOGGER_ID
+from pytgcalls.types import GroupCallParticipant
+import asyncio
 
-app = Client(
-    "vc-assistant",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN,
-    session_string=STRING_SESSION
-)
+API_ID = 123456
+API_HASH = "your_api_hash"
+SESSION_NAME = "userbot_session"
 
-# Owner + Logger group control
-def control_filter_func(_, __, message):
-    return (
-        message.from_user
-        and message.from_user.id == OWNER_ID
-        and message.chat
-        and message.chat.id == LOGGER_ID
-    )
+app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
+calls = PyTgCalls(app)
 
-control_filter = filters.create(control_filter_func)
+current_level = 10  # default 10/20
 
-pytg = PyTgCalls(app)
+def level_to_volume(lvl: int) -> int:
+    return max(1, min(20, lvl)) * 10  # 1-20 → 10-200
 
+# ---------------- Commands -----------------
 
-def owner_logger(_, __, message):
-    return (
-        message.from_user
-        and message.from_user.id == OWNER_ID
-        and message.chat
-        and message.chat.id == LOGGER_ID
-    )
-
-control_filter = filters.create(owner_logger)
-
-
-#VOLUME INCREASE FUNCTION
-
-@app.on_message(filters.command("level") & owner_filter)
-async def set_volume(client, message):
-    if len(message.command) < 2:
-        await message.reply("Usage: /level 1-20")
+@app.on_message(filters.command("level", prefixes=".") & filters.me)
+async def set_level_cmd(_, msg: Message):
+    global current_level
+    if len(msg.command) < 2:
+        await msg.edit(f"Current level: {current_level}/20")
+        return
+    try:
+        new_level = int(msg.command[1])
+        if not 1 <= new_level <= 20:
+            raise ValueError
+    except ValueError:
+        await msg.edit("Usage: `.level 1-20`")
         return
 
+    current_level = new_level
+    vol = level_to_volume(current_level)
     try:
-        level = int(message.command[1])
-
-        if level < 1 or level > 20:
-            await message.reply("Level must be between 1 and 20.")
-            return
-
-        volume = level * 5  # converts 1-20 → 5-100
-
-        await pytg.change_volume_call(
-            message.chat.id,
-            volume
-        )
-
-        await message.reply(f"Volume set to Level {level}")
-
+        await calls.set_my_volume(vol)
+        await msg.edit(f"Mic level set: {current_level}/20 → {vol}/200")
     except Exception as e:
-        await message.reply(f"Error: {e}")
+        await msg.edit(f"Failed to set volume: {e}")
 
-@app.on_message(filters.command("join") & owner_filter)
-async def join_vc(client, message):
-    if len(message.command) < 2:
-        await message.reply("Usage: /join <chat_id>")
-        return
-
-    chat_id = int(message.command[1])
-
+@app.on_message(filters.command("joinvc", prefixes=".") & filters.me)
+async def join_vc(_, msg: Message):
+    chat_id = msg.chat.id
     try:
-        await pytg.join_group_call(
-            chat_id,
-            InputAudioStream(
-                "sample_audio.mp3",
-                HighQualityAudio()
-            )
-        )
-        await message.reply("Joined VC successfully.")
+        await calls.join_group_call(chat_id, stream_type="raw")
+        await asyncio.sleep(2)
+        await calls.set_my_volume(level_to_volume(current_level))
+        await msg.edit(f"Joined VC | Mic Level: {current_level}/20")
     except Exception as e:
-        await message.reply(f"Error: {e}")
+        await msg.edit(f"Error joining VC: {e}")
 
-
-@app.on_message(filters.command("mute") & owner_filter)
-async def mute_vc(client, message):
-    chat_id = message.chat.id
+@app.on_message(filters.command("leavevc", prefixes=".") & filters.me)
+async def leave_vc(_, msg: Message):
     try:
-        await pytg.mute_stream(chat_id)
-        await message.reply("VC muted.")
+        await calls.leave_group_call(msg.chat.id)
+        await msg.edit("Left VC")
     except Exception as e:
-        await message.reply(f"Error: {e}")
+        await msg.edit(f"Error leaving VC: {e}")
 
+# ---------------- Auto re-apply volume -----------------
+@calls.on_participant_updated()
+async def participant_update(_, participant: GroupCallParticipant):
+    if participant.user_id == (await app.get_me()).id:
+        try:
+            await calls.set_my_volume(level_to_volume(current_level))
+        except:
+            pass
 
-@app.on_message(filters.command("unmute") & owner_filter)
-async def unmute_vc(client, message):
-    chat_id = message.chat.id
-    try:
-        await pytg.unmute_stream(chat_id)
-        await message.reply("VC unmuted.")
-    except Exception as e:
-        await message.reply(f"Error: {e}")
-
-
-@app.on_message(filters.command("leaveplay") & owner_filter)
-async def leave_play(client, message):
-    chat_id = message.chat.id
-    try:
-        await pytg.leave_group_call(chat_id)
-        await message.reply("Left voice chat.")
-    except Exception as e:
-        await message.reply(f"Error: {e}")
-
-
-@app.on_message(filters.command("leaverecord") & owner_filter)
-async def leave_record(client, message):
-    chat_id = message.chat.id
-    try:
-        await pytg.leave_group_call(chat_id)
-        await message.reply("Left control VC.")
-    except Exception as e:
-        await message.reply(f"Error: {e}")
-
-
-@app.on_message(filters.command("shutdown") & owner_filter)
-async def shutdown_bot(client, message):
-    await message.reply("Shutting down...")
-    await pytg.stop()
-    await app.stop()
-
-
-@pytg.on_update()
-async def stream_end_handler(_, update: Update):
-    if isinstance(update, StreamAudioEnded):
-        await pytg.leave_group_call(update.chat_id)
-
-
+# ---------------- Run -----------------
 async def main():
     await app.start()
-    await pytg.start()
-    print("VC Assistant Bot Started")
-    await idle()
+    await calls.start()
+    print("Userbot running! Use .joinvc and .level to boost mic")
+    while True:
+        await asyncio.sleep(60)
 
-
-from pyrogram.idle import idle
-
-asyncio.get_event_loop().run_until_complete(main())
+if __name__ == "__main__":
+    asyncio.run(main())
