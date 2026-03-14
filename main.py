@@ -2,11 +2,11 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from pytgcalls import PyTgCalls
 from pytgcalls.types import GroupCallParticipant
-from config import API_ID, API_HASH, SESSION_STRING
+from config import API_ID, API_HASH, STRING_SESSION
 import asyncio
 
 
-app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
+app = Client(STRING_SESSION, api_id=API_ID, api_hash=API_HASH)
 calls = PyTgCalls(app)
 
 current_level = 10  # default 10/20
