@@ -5,7 +5,8 @@ from pytgcalls.types.input_stream import InputAudioStream
 from pytgcalls.types.input_stream.quality import HighQualityAudio
 from pytgcalls.types import Update
 from pytgcalls.types.stream import StreamAudioEnded
-from config import API_ID, API_HASH, BOT_TOKEN, STRING_SESSION
+from pyrogram import Client, filters
+from config import API_ID, API_HASH, BOT_TOKEN, STRING_SESSION, OWNER_ID, LOGGER_ID
 
 app = Client(
     "vc-assistant",
@@ -14,6 +15,17 @@ app = Client(
     bot_token=BOT_TOKEN,
     session_string=STRING_SESSION
 )
+
+# Owner + Logger group control
+def control_filter_func(_, __, message):
+    return (
+        message.from_user
+        and message.from_user.id == OWNER_ID
+        and message.chat
+        and message.chat.id == LOGGER_ID
+    )
+
+control_filter = filters.create(control_filter_func)
 
 pytg = PyTgCalls(app)
 
